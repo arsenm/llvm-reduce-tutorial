@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+
+$<TARGET_FILE:opt> --load-pass-plugin=$<TARGET_FILE:buggy_plugin> $@
