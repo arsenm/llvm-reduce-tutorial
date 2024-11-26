@@ -10,14 +10,26 @@
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
+#include "llvm/Support/FormatVariadic.h"
 
 using namespace llvm;
 
 namespace {
+
+struct BuggyOptions {
+  bool CrashOnVector = true;
+};
+
 class BuggyPass : public PassInfoMixin<BuggyPass> {
+  const BuggyOptions Options;
+
 public:
+  BuggyPass(BuggyOptions Opts = BuggyOptions()) : Options(Opts) {}
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
+
+StringLiteral Name = "buggy";
+StringLiteral PassName = "buggy";
 
 } // anonymous namespace
 
@@ -26,11 +38,37 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
 
   for (BasicBlock &BB : F) {
     for (Instruction &I : BB) {
+
+      if (Options.CrashOnVector && isa<VectorType>(I.getType()))
+        report_fatal_error("vector instructions are broken");
+
       Changed = true;
     }
   }
 
   return Changed ? PreservedAnalyses::none() : PreservedAnalyses::all();
+}
+
+static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
+  if (Params.empty())
+    return BuggyOptions();
+
+  BuggyOptions Result;
+  while (!Params.empty()) {
+    StringRef ParamName;
+    std::tie(ParamName, Params) = Params.split(';');
+
+    bool Enable = !ParamName.consume_front("no-");
+    if (ParamName == "crash-on-vector") {
+      Result.CrashOnVector = Enable;
+    } else {
+      return make_error<StringError>(
+          formatv("invalid buggy pass parameter '{0}'", Params).str(),
+          inconvertibleErrorCode());
+    }
+  }
+
+  return Result;
 }
 
 static llvm::PassPluginLibraryInfo getBuggyPluginInfo() {
@@ -39,14 +77,20 @@ static llvm::PassPluginLibraryInfo getBuggyPluginInfo() {
             PB.registerVectorizerStartEPCallback(
                 [](llvm::FunctionPassManager &PM, OptimizationLevel Level) {
                   PM.addPass(BuggyPass());
+                  return true;
                 });
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, llvm::FunctionPassManager &PM,
                    ArrayRef<llvm::PassBuilder::PipelineElement>) {
-                  if (Name == "buggy") {
-                    PM.addPass(BuggyPass());
+                  if (PassBuilder::checkParametrizedPassName(Name, PassName)) {
+                    auto Params = PassBuilder::parsePassParameters(
+                        parseBuggyOptions, Name, PassName);
+                    if (!Params)
+                      return false;
+                    PM.addPass(BuggyPass(*Params));
                     return true;
                   }
+
                   return false;
                 });
           }};
