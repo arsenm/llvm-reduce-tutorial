@@ -18,7 +18,10 @@ namespace {
 
 struct BuggyOptions {
   bool CrashOnVector = true;
+  bool InfLoopOnIndirectCall = true;
 };
+
+static volatile int side_effect;
 
 class BuggyPass : public PassInfoMixin<BuggyPass> {
   const BuggyOptions Options;
@@ -42,6 +45,12 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
       if (Options.CrashOnVector && isa<VectorType>(I.getType()))
         report_fatal_error("vector instructions are broken");
 
+      if (Options.InfLoopOnIndirectCall) {
+        auto *CI = dyn_cast<CallBase>(&I);
+        while (CI && !CI->getCalledFunction())
+          side_effect = 0;
+      }
+
       Changed = true;
     }
   }
@@ -59,9 +68,11 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
     std::tie(ParamName, Params) = Params.split(';');
 
     bool Enable = !ParamName.consume_front("no-");
-    if (ParamName == "crash-on-vector") {
+    if (ParamName == "crash-on-vector")
       Result.CrashOnVector = Enable;
-    } else {
+    else if (ParamName == "infloop-on-indirect-call")
+      Result.InfLoopOnIndirectCall = Enable;
+    else {
       return make_error<StringError>(
           formatv("invalid buggy pass parameter '{0}'", Params).str(),
           inconvertibleErrorCode());
