@@ -11,6 +11,7 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/Process.h"
 
 using namespace llvm;
 
@@ -96,6 +97,19 @@ static llvm::PassPluginLibraryInfo getBuggyPluginInfo() {
           [](PassBuilder &PB) {
             PB.registerVectorizerStartEPCallback(
                 [](llvm::FunctionPassManager &PM, OptimizationLevel Level) {
+                  if (std::optional<std::string> PassPipelineOpts =
+                          sys::Process::GetEnv("BUGGY_PLUGIN_OPTS")) {
+
+                    Expected<BuggyOptions> Options =
+                        parseBuggyOptions(*PassPipelineOpts);
+                    if (Options) {
+                      PM.addPass(BuggyPass(*Options));
+                      return true;
+                    }
+
+                    report_fatal_error(Options.takeError(), false);
+                  }
+
                   PM.addPass(BuggyPass());
                   return true;
                 });
