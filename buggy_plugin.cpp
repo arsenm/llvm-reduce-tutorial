@@ -18,9 +18,9 @@ using namespace llvm;
 namespace {
 
 struct BuggyOptions {
-  bool CrashOnVector = true;
-  bool CrashOnLoadOfIntToPtr = true;
-  bool InfLoopOnIndirectCall = true;
+  bool CrashOnVector = false;
+  bool CrashOnLoadOfIntToPtr = false;
+  bool InfLoopOnIndirectCall = false;
 };
 
 static volatile int side_effect;
