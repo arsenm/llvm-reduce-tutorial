@@ -18,6 +18,7 @@ namespace {
 
 struct BuggyOptions {
   bool CrashOnVector = true;
+  bool CrashOnLoadOfIntToPtr = true;
   bool InfLoopOnIndirectCall = true;
 };
 
@@ -45,6 +46,12 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
       if (Options.CrashOnVector && isa<VectorType>(I.getType()))
         report_fatal_error("vector instructions are broken");
 
+      if (Options.CrashOnLoadOfIntToPtr) {
+        auto *LI = dyn_cast<LoadInst>(&I);
+        if (LI && isa<IntToPtrInst>(LI->getPointerOperand()))
+          report_fatal_error("load of inttoptr is broken");
+      }
+
       if (Options.InfLoopOnIndirectCall) {
         auto *CI = dyn_cast<CallBase>(&I);
         while (CI && !CI->getCalledFunction())
@@ -70,6 +77,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
     bool Enable = !ParamName.consume_front("no-");
     if (ParamName == "crash-on-vector")
       Result.CrashOnVector = Enable;
+    else if (ParamName == "crash-load-of-inttoptr")
+      Result.CrashOnLoadOfIntToPtr = Enable;
     else if (ParamName == "infloop-on-indirect-call")
       Result.InfLoopOnIndirectCall = Enable;
     else {
