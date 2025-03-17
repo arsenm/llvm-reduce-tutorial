@@ -21,6 +21,7 @@ struct BuggyOptions {
   bool CrashOnVector = false;
   bool CrashOnLoadOfIntToPtr = false;
   bool InfLoopOnIndirectCall = false;
+  bool BugOnlyIfOddNumberInsts = false;
 };
 
 static volatile int side_effect;
@@ -40,6 +41,14 @@ StringLiteral PassName = "buggy";
 
 PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
   bool Changed = false;
+
+  size_t InstCount = 0;
+  if (Options.BugOnlyIfOddNumberInsts) {
+    for (BasicBlock &BB : F)
+      InstCount += BB.size();
+    if ((InstCount & 1) == 0)
+      return PreservedAnalyses::all();
+  }
 
   for (BasicBlock &BB : F) {
     for (Instruction &I : BB) {
@@ -82,6 +91,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.CrashOnLoadOfIntToPtr = Enable;
     else if (ParamName == "infloop-on-indirect-call")
       Result.InfLoopOnIndirectCall = Enable;
+    else if (ParamName == "bug-only-if-odd-number-insts")
+      Result.BugOnlyIfOddNumberInsts = Enable;
     else {
       return make_error<StringError>(
           formatv("invalid buggy pass parameter '{0}'", Params).str(),
