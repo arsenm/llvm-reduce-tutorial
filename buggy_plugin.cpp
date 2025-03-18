@@ -19,6 +19,7 @@ namespace {
 
 struct BuggyOptions {
   bool CrashOnVector = false;
+  bool CrashOnShuffleVector = false;
   bool CrashOnLoadOfIntToPtr = false;
   bool InfLoopOnIndirectCall = false;
   bool BugOnlyIfOddNumberInsts = false;
@@ -52,6 +53,9 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
 
   for (BasicBlock &BB : F) {
     for (Instruction &I : BB) {
+
+      if (Options.CrashOnShuffleVector && isa<ShuffleVectorInst>(I))
+        report_fatal_error("shufflevector instructions are broken");
 
       if (Options.CrashOnVector && isa<VectorType>(I.getType()))
         report_fatal_error("vector instructions are broken");
@@ -87,6 +91,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
     bool Enable = !ParamName.consume_front("no-");
     if (ParamName == "crash-on-vector")
       Result.CrashOnVector = Enable;
+    else if (ParamName == "crash-on-shufflevector")
+      Result.CrashOnShuffleVector = Enable;
     else if (ParamName == "crash-load-of-inttoptr")
       Result.CrashOnLoadOfIntToPtr = Enable;
     else if (ParamName == "infloop-on-indirect-call")
