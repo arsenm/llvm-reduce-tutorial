@@ -22,6 +22,7 @@ struct BuggyOptions {
   bool CrashOnShuffleVector = false;
   bool CrashOnLoadOfIntToPtr = false;
   bool CrashOnAggregatePhi = false;
+  bool CrashOnSwitchOddNumberCases = false;
   bool InfLoopOnIndirectCall = false;
   bool BugOnlyIfOddNumberInsts = false;
 };
@@ -54,6 +55,13 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
 
   for (BasicBlock &BB : F) {
     for (Instruction &I : BB) {
+
+      if (Options.CrashOnSwitchOddNumberCases) {
+        if (const auto *Switch = dyn_cast<SwitchInst>(&I)) {
+          if (Switch->getNumCases() & 1)
+            report_fatal_error("switch with odd number of cases is broken");
+        }
+      }
 
       if (Options.CrashOnShuffleVector && isa<ShuffleVectorInst>(I))
         report_fatal_error("shufflevector instructions are broken");
@@ -102,6 +110,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.CrashOnAggregatePhi = Enable;
     else if (ParamName == "crash-load-of-inttoptr")
       Result.CrashOnLoadOfIntToPtr = Enable;
+    else if (ParamName == "crash-switch-odd-number-cases")
+      Result.CrashOnSwitchOddNumberCases = Enable;
     else if (ParamName == "infloop-on-indirect-call")
       Result.InfLoopOnIndirectCall = Enable;
     else if (ParamName == "bug-only-if-odd-number-insts")
