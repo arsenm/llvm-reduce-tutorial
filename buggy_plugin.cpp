@@ -21,6 +21,7 @@ struct BuggyOptions {
   bool CrashOnVector = false;
   bool CrashOnShuffleVector = false;
   bool CrashOnLoadOfIntToPtr = false;
+  bool CrashOnAggregatePhi = false;
   bool InfLoopOnIndirectCall = false;
   bool BugOnlyIfOddNumberInsts = false;
 };
@@ -60,6 +61,10 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
       if (Options.CrashOnVector && isa<VectorType>(I.getType()))
         report_fatal_error("vector instructions are broken");
 
+      if (Options.CrashOnAggregatePhi && isa<PHINode>(I) &&
+          I.getType()->isAggregateType())
+        report_fatal_error("aggregate phis are broken");
+
       if (Options.CrashOnLoadOfIntToPtr) {
         auto *LI = dyn_cast<LoadInst>(&I);
         if (LI && isa<IntToPtrInst>(LI->getPointerOperand()))
@@ -93,6 +98,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.CrashOnVector = Enable;
     else if (ParamName == "crash-on-shufflevector")
       Result.CrashOnShuffleVector = Enable;
+    else if (ParamName == "crash-on-aggregate-phi")
+      Result.CrashOnAggregatePhi = Enable;
     else if (ParamName == "crash-load-of-inttoptr")
       Result.CrashOnLoadOfIntToPtr = Enable;
     else if (ParamName == "infloop-on-indirect-call")
