@@ -21,6 +21,7 @@ struct BuggyOptions {
   bool CrashOnVector = false;
   bool CrashOnShuffleVector = false;
   bool CrashOnLoadOfIntToPtr = false;
+  bool CrashOnStoreToConstantExpr = false;
   bool CrashOnAggregatePhi = false;
   bool CrashOnSwitchOddNumberCases = false;
   bool InfLoopOnIndirectCall = false;
@@ -73,6 +74,13 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
           I.getType()->isAggregateType())
         report_fatal_error("aggregate phis are broken");
 
+      if (Options.CrashOnStoreToConstantExpr) {
+        if (const auto *SI = dyn_cast<StoreInst>(&I)) {
+          if (isa<ConstantExpr>(SI->getPointerOperand()))
+            report_fatal_error("store to constantexpr pointer is broken");
+        }
+      }
+
       if (Options.CrashOnLoadOfIntToPtr) {
         auto *LI = dyn_cast<LoadInst>(&I);
         if (LI && isa<IntToPtrInst>(LI->getPointerOperand()))
@@ -110,6 +118,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.CrashOnAggregatePhi = Enable;
     else if (ParamName == "crash-load-of-inttoptr")
       Result.CrashOnLoadOfIntToPtr = Enable;
+    else if (ParamName == "crash-store-to-constantexpr")
+      Result.CrashOnStoreToConstantExpr = Enable;
     else if (ParamName == "crash-switch-odd-number-cases")
       Result.CrashOnSwitchOddNumberCases = Enable;
     else if (ParamName == "infloop-on-indirect-call")
