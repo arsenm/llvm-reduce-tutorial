@@ -26,6 +26,7 @@ struct BuggyOptions {
   bool CrashOnPhiRepeatedPredecessor = false;
   bool CrashOnPhiSelfReference = false;
   bool CrashOnSwitchOddNumberCases = false;
+  bool CrashOnI1Select = false;
   bool InfLoopOnIndirectCall = false;
   bool BugOnlyIfOddNumberInsts = false;
 };
@@ -92,6 +93,12 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
           report_fatal_error("aggregate phis are broken");
       }
 
+      if (Options.CrashOnI1Select) {
+        if (const auto *SI = dyn_cast<SelectInst>(&I))
+          if (SI->getType()->isIntegerTy(1))
+            report_fatal_error("i1 typed select is broken");
+      }
+
       if (Options.CrashOnStoreToConstantExpr) {
         if (const auto *SI = dyn_cast<StoreInst>(&I)) {
           if (isa<ConstantExpr>(SI->getPointerOperand()))
@@ -144,6 +151,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.CrashOnStoreToConstantExpr = Enable;
     else if (ParamName == "crash-switch-odd-number-cases")
       Result.CrashOnSwitchOddNumberCases = Enable;
+    else if (ParamName == "crash-on-i1-select")
+      Result.CrashOnI1Select = Enable;
     else if (ParamName == "infloop-on-indirect-call")
       Result.InfLoopOnIndirectCall = Enable;
     else if (ParamName == "bug-only-if-odd-number-insts")
