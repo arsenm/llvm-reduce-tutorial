@@ -23,6 +23,7 @@ struct BuggyOptions {
   bool CrashOnLoadOfIntToPtr = false;
   bool CrashOnStoreToConstantExpr = false;
   bool CrashOnAggregatePhi = false;
+  bool CrashOnPhiRepeatedPredecessor = false;
   bool CrashOnSwitchOddNumberCases = false;
   bool InfLoopOnIndirectCall = false;
   bool BugOnlyIfOddNumberInsts = false;
@@ -70,9 +71,18 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
       if (Options.CrashOnVector && isa<VectorType>(I.getType()))
         report_fatal_error("vector instructions are broken");
 
-      if (Options.CrashOnAggregatePhi && isa<PHINode>(I) &&
-          I.getType()->isAggregateType())
-        report_fatal_error("aggregate phis are broken");
+      if (PHINode *Phi = dyn_cast<PHINode>(&I)) {
+        if (Options.CrashOnPhiRepeatedPredecessor) {
+          SmallPtrSet<BasicBlock *, 4> VisitedPreds;
+          for (BasicBlock *Pred : Phi->blocks()) {
+            if (!VisitedPreds.insert(Pred).second)
+              report_fatal_error("phi with repeated predecessor is broken");
+          }
+        }
+
+        if (Options.CrashOnAggregatePhi && Phi->getType()->isAggregateType())
+          report_fatal_error("aggregate phis are broken");
+      }
 
       if (Options.CrashOnStoreToConstantExpr) {
         if (const auto *SI = dyn_cast<StoreInst>(&I)) {
@@ -116,6 +126,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.CrashOnShuffleVector = Enable;
     else if (ParamName == "crash-on-aggregate-phi")
       Result.CrashOnAggregatePhi = Enable;
+    else if (ParamName == "crash-on-repeated-phi-predecessor")
+      Result.CrashOnPhiRepeatedPredecessor = Enable;
     else if (ParamName == "crash-load-of-inttoptr")
       Result.CrashOnLoadOfIntToPtr = Enable;
     else if (ParamName == "crash-store-to-constantexpr")
