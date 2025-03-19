@@ -16,7 +16,6 @@
 using namespace llvm;
 
 namespace {
-
 struct BuggyOptions {
   bool CrashOnVector = false;
   bool CrashOnShuffleVector = false;
@@ -31,9 +30,12 @@ struct BuggyOptions {
   bool InfLoopOnIndirectCall = false;
   bool BugOnlyIfOddNumberInsts = false;
   bool BugOnlyIfInternalFunc = false;
+  bool BugOnlyIfExternalFunc = false;
 };
 
 static volatile int side_effect;
+static StringLiteral Name = "buggy";
+static StringLiteral PassName = "buggy";
 
 class BuggyPass : public PassInfoMixin<BuggyPass> {
   const BuggyOptions Options;
@@ -41,17 +43,19 @@ class BuggyPass : public PassInfoMixin<BuggyPass> {
 public:
   BuggyPass(BuggyOptions Opts = BuggyOptions()) : Options(Opts) {}
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+
+  static StringRef name() { return PassName; }
 };
 
-StringLiteral Name = "buggy";
-StringLiteral PassName = "buggy";
-
 } // anonymous namespace
+
 
 PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
   bool Changed = false;
 
   if (Options.BugOnlyIfInternalFunc && !F.hasInternalLinkage())
+    return PreservedAnalyses::all();
+  if (Options.BugOnlyIfExternalFunc && !F.hasExternalLinkage())
     return PreservedAnalyses::all();
 
   size_t InstCount = 0;
@@ -173,6 +177,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.BugOnlyIfOddNumberInsts = Enable;
     else if (ParamName == "bug-only-if-internal-func")
       Result.BugOnlyIfInternalFunc = Enable;
+    else if (ParamName == "bug-only-if-external-func")
+      Result.BugOnlyIfExternalFunc = Enable;
     else {
       return make_error<StringError>(
           formatv("invalid buggy pass parameter '{0}'", Params).str(),
