@@ -27,6 +27,7 @@ struct BuggyOptions {
   bool CrashOnPhiSelfReference = false;
   bool CrashOnSwitchOddNumberCases = false;
   bool CrashOnI1Select = false;
+  bool CrashIfWeakGlobalExists = false;
   bool InfLoopOnIndirectCall = false;
   bool BugOnlyIfOddNumberInsts = false;
 };
@@ -55,6 +56,13 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
       InstCount += BB.size();
     if ((InstCount & 1) == 0)
       return PreservedAnalyses::all();
+  }
+
+  if (Options.CrashIfWeakGlobalExists) {
+    for (const GlobalValue &GV : F.getParent()->globals()) {
+      if (GV.hasWeakLinkage())
+        report_fatal_error("broken if there is a weak global");
+    }
   }
 
   for (BasicBlock &BB : F) {
@@ -153,6 +161,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.CrashOnSwitchOddNumberCases = Enable;
     else if (ParamName == "crash-on-i1-select")
       Result.CrashOnI1Select = Enable;
+    else if (ParamName == "crash-if-weak-global-exists")
+      Result.CrashIfWeakGlobalExists = Enable;
     else if (ParamName == "infloop-on-indirect-call")
       Result.InfLoopOnIndirectCall = Enable;
     else if (ParamName == "bug-only-if-odd-number-insts")
