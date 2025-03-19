@@ -24,6 +24,7 @@ struct BuggyOptions {
   bool CrashOnStoreToConstantExpr = false;
   bool CrashOnAggregatePhi = false;
   bool CrashOnPhiRepeatedPredecessor = false;
+  bool CrashOnPhiSelfReference = false;
   bool CrashOnSwitchOddNumberCases = false;
   bool InfLoopOnIndirectCall = false;
   bool BugOnlyIfOddNumberInsts = false;
@@ -80,6 +81,13 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
           }
         }
 
+        if (Options.CrashOnPhiSelfReference) {
+          for (Value *Incoming : Phi->incoming_values()) {
+            if (Incoming == Phi)
+              report_fatal_error("self referential phi is broken");
+          }
+        }
+
         if (Options.CrashOnAggregatePhi && Phi->getType()->isAggregateType())
           report_fatal_error("aggregate phis are broken");
       }
@@ -128,6 +136,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.CrashOnAggregatePhi = Enable;
     else if (ParamName == "crash-on-repeated-phi-predecessor")
       Result.CrashOnPhiRepeatedPredecessor = Enable;
+    else if (ParamName == "crash-on-phi-self-reference")
+      Result.CrashOnPhiSelfReference = Enable;
     else if (ParamName == "crash-load-of-inttoptr")
       Result.CrashOnLoadOfIntToPtr = Enable;
     else if (ParamName == "crash-store-to-constantexpr")
