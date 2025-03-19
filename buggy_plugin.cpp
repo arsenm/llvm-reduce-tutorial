@@ -30,6 +30,7 @@ struct BuggyOptions {
   bool CrashIfWeakGlobalExists = false;
   bool InfLoopOnIndirectCall = false;
   bool BugOnlyIfOddNumberInsts = false;
+  bool BugOnlyIfInternalFunc = false;
 };
 
 static volatile int side_effect;
@@ -49,6 +50,9 @@ StringLiteral PassName = "buggy";
 
 PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
   bool Changed = false;
+
+  if (Options.BugOnlyIfInternalFunc && !F.hasInternalLinkage())
+    return PreservedAnalyses::all();
 
   size_t InstCount = 0;
   if (Options.BugOnlyIfOddNumberInsts) {
@@ -167,6 +171,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.InfLoopOnIndirectCall = Enable;
     else if (ParamName == "bug-only-if-odd-number-insts")
       Result.BugOnlyIfOddNumberInsts = Enable;
+    else if (ParamName == "bug-only-if-internal-func")
+      Result.BugOnlyIfInternalFunc = Enable;
     else {
       return make_error<StringError>(
           formatv("invalid buggy pass parameter '{0}'", Params).str(),
