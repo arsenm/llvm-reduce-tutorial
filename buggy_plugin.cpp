@@ -31,6 +31,7 @@ struct BuggyOptions {
   bool BugOnlyIfOddNumberInsts = false;
   bool BugOnlyIfInternalFunc = false;
   bool BugOnlyIfExternalFunc = false;
+  bool InsertUnparseableAsm = false;
 };
 
 static volatile int side_effect;
@@ -71,6 +72,19 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
       if (GV.hasWeakLinkage())
         report_fatal_error("broken if there is a weak global");
     }
+  }
+
+  LLVMContext &Ctx = F.getContext();
+
+  if (Options.InsertUnparseableAsm) {
+    BasicBlock &InsertBB = F.getEntryBlock();
+    BasicBlock::iterator It = InsertBB.getFirstInsertionPt();
+    FunctionType *FTy =
+        FunctionType::get(Type::getVoidTy(Ctx), {}, /*isVarArg=*/false);
+    InlineAsm *Asm =
+        InlineAsm::get(FTy, "skynet", "", /*hasSideEffects=*/false);
+    CallInst::Create(FTy, Asm, "", It);
+    return PreservedAnalyses::none();
   }
 
   for (BasicBlock &BB : F) {
@@ -179,6 +193,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.BugOnlyIfInternalFunc = Enable;
     else if (ParamName == "bug-only-if-external-func")
       Result.BugOnlyIfExternalFunc = Enable;
+    else if (ParamName == "insert-unparseable-asm")
+      Result.InsertUnparseableAsm = Enable;
     else {
       return make_error<StringError>(
           formatv("invalid buggy pass parameter '{0}'", Params).str(),
