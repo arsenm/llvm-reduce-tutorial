@@ -32,6 +32,7 @@ struct BuggyOptions {
   bool BugOnlyIfInternalFunc = false;
   bool BugOnlyIfExternalFunc = false;
   bool InsertUnparseableAsm = false;
+  bool MiscompileICmpSltToSle = false;
 };
 
 static volatile int side_effect;
@@ -89,6 +90,15 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
 
   for (BasicBlock &BB : F) {
     for (Instruction &I : BB) {
+
+      if (ICmpInst *ICmp = dyn_cast<ICmpInst>(&I)) {
+        if (Options.MiscompileICmpSltToSle) {
+          if (ICmp->getPredicate() == ICmpInst::ICMP_SLT) {
+            ICmp->setPredicate(ICmpInst::ICMP_SLE);
+            Changed = true;
+          }
+        }
+      }
 
       if (Options.CrashOnSwitchOddNumberCases) {
         if (const auto *Switch = dyn_cast<SwitchInst>(&I)) {
@@ -195,6 +205,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.BugOnlyIfExternalFunc = Enable;
     else if (ParamName == "insert-unparseable-asm")
       Result.InsertUnparseableAsm = Enable;
+    else if (ParamName == "miscompile-icmp-slt-to-sle")
+      Result.MiscompileICmpSltToSle = Enable;
     else {
       return make_error<StringError>(
           formatv("invalid buggy pass parameter '{0}'", Params).str(),
