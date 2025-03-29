@@ -33,6 +33,7 @@ struct BuggyOptions {
   bool BugOnlyIfExternalFunc = false;
   bool InsertUnparseableAsm = false;
   bool MiscompileICmpSltToSle = false;
+  bool CrashOnBuggyAttr = false;
 };
 
 static volatile int side_effect;
@@ -49,6 +50,14 @@ public:
   static StringRef name() { return PassName; }
 };
 
+class BuggyAttrPass : public PassInfoMixin<BuggyAttrPass> {
+public:
+  BuggyAttrPass() {}
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+
+  static StringRef name() { return "buggy-attr"; }
+};
+
 } // anonymous namespace
 
 
@@ -59,6 +68,9 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
     return PreservedAnalyses::all();
   if (Options.BugOnlyIfExternalFunc && !F.hasExternalLinkage())
     return PreservedAnalyses::all();
+
+  if (Options.CrashOnBuggyAttr && F.hasFnAttribute("buggy-attr"))
+    report_fatal_error("buggy-attr is broken");
 
   size_t InstCount = 0;
   if (Options.BugOnlyIfOddNumberInsts) {
@@ -207,6 +219,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.InsertUnparseableAsm = Enable;
     else if (ParamName == "miscompile-icmp-slt-to-sle")
       Result.MiscompileICmpSltToSle = Enable;
+    else if (ParamName == "crash-on-buggy-attr")
+      Result.CrashOnBuggyAttr = Enable;
     else {
       return make_error<StringError>(
           formatv("invalid buggy pass parameter '{0}'", Params).str(),
@@ -215,6 +229,11 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
   }
 
   return Result;
+}
+
+PreservedAnalyses BuggyAttrPass::run(Function &F, FunctionAnalysisManager &AM) {
+  F.addFnAttr("buggy-attr");
+  return PreservedAnalyses::all();
 }
 
 static llvm::PassPluginLibraryInfo getBuggyPluginInfo() {
@@ -228,6 +247,9 @@ static llvm::PassPluginLibraryInfo getBuggyPluginInfo() {
                     Expected<BuggyOptions> Options =
                         parseBuggyOptions(*PassPipelineOpts);
                     if (Options) {
+                      if (Options->CrashOnBuggyAttr)
+                        PM.addPass(BuggyAttrPass());
+
                       PM.addPass(BuggyPass(*Options));
                       return true;
                     }
@@ -247,6 +269,11 @@ static llvm::PassPluginLibraryInfo getBuggyPluginInfo() {
                     if (!Params)
                       return false;
                     PM.addPass(BuggyPass(*Params));
+                    return true;
+                  }
+
+                  if (Name == "buggy-attr") {
+                    PM.addPass(BuggyAttrPass());
                     return true;
                   }
 
