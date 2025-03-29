@@ -53,7 +53,7 @@ public:
 class BuggyAttrPass : public PassInfoMixin<BuggyAttrPass> {
 public:
   BuggyAttrPass() {}
-  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 
   static StringRef name() { return "buggy-attr"; }
 };
@@ -231,8 +231,12 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
   return Result;
 }
 
-PreservedAnalyses BuggyAttrPass::run(Function &F, FunctionAnalysisManager &AM) {
-  F.addFnAttr("buggy-attr");
+PreservedAnalyses BuggyAttrPass::run(Module &M, ModuleAnalysisManager &AM) {
+  for (Function &F : M) {
+    if (!F.isDeclaration())
+      F.addFnAttr("buggy-attr");
+  }
+
   return PreservedAnalyses::all();
 }
 
@@ -247,9 +251,6 @@ static llvm::PassPluginLibraryInfo getBuggyPluginInfo() {
                     Expected<BuggyOptions> Options =
                         parseBuggyOptions(*PassPipelineOpts);
                     if (Options) {
-                      if (Options->CrashOnBuggyAttr)
-                        PM.addPass(BuggyAttrPass());
-
                       PM.addPass(BuggyPass(*Options));
                       return true;
                     }
@@ -271,7 +272,25 @@ static llvm::PassPluginLibraryInfo getBuggyPluginInfo() {
                     PM.addPass(BuggyPass(*Params));
                     return true;
                   }
+                  return false;
+                });
 
+            PB.registerOptimizerEarlyEPCallback([](ModulePassManager &PM,
+                                                   OptimizationLevel,
+                                                   ThinOrFullLTOPhase) {
+              if (std::optional<std::string> PassPipelineOpts =
+                      sys::Process::GetEnv("BUGGY_PLUGIN_OPTS")) {
+                Expected<BuggyOptions> Options =
+                    parseBuggyOptions(*PassPipelineOpts);
+                if (Options) {
+                  if (Options->CrashOnBuggyAttr)
+                    PM.addPass(BuggyAttrPass());
+                }
+              }
+            });
+            PB.registerPipelineParsingCallback(
+                [](StringRef Name, ModulePassManager &PM,
+                   ArrayRef<llvm::PassBuilder::PipelineElement>) {
                   if (Name == "buggy-attr") {
                     PM.addPass(BuggyAttrPass());
                     return true;
