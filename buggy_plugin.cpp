@@ -45,9 +45,12 @@ class BuggyPass : public PassInfoMixin<BuggyPass> {
 
 public:
   BuggyPass(BuggyOptions Opts = BuggyOptions()) : Options(Opts) {}
-  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 
   static StringRef name() { return PassName; }
+
+  void printPipeline(raw_ostream &OS,
+                     function_ref<StringRef(StringRef)> MapClassName2PassName);
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
 class BuggyAttrPass : public PassInfoMixin<BuggyAttrPass> {
@@ -60,6 +63,47 @@ public:
 
 } // anonymous namespace
 
+void BuggyPass::printPipeline(
+    raw_ostream &OS, function_ref<StringRef(StringRef)> MapClassName2PassName) {
+  static_cast<PassInfoMixin<BuggyPass> *>(this)->printPipeline(
+      OS, MapClassName2PassName);
+  OS << '<';
+  if (Options.CrashOnVector)
+    OS << "crash-on-vector;";
+  if (Options.CrashOnShuffleVector)
+    OS << "crash-on-shufflevector;";
+  if (Options.CrashOnAggregatePhi)
+    OS << "crash-on-aggregate-phi;";
+  if (Options.CrashOnPhiRepeatedPredecessor)
+    OS << "crash-on-repeated-phi-predecessor;";
+  if (Options.CrashOnPhiSelfReference)
+    OS << "crash-on-phi-self-reference;";
+  if (Options.CrashOnLoadOfIntToPtr)
+    OS << "crash-load-of-inttoptr;";
+  if (Options.CrashOnStoreToConstantExpr)
+    OS << "crash-store-to-constantexpr;";
+  if (Options.CrashOnSwitchOddNumberCases)
+    OS << "crash-switch-odd-number-cases;";
+  if (Options.CrashOnI1Select)
+    OS << "crash-on-i1-select;";
+  if (Options.CrashIfWeakGlobalExists)
+    OS << "crash-if-weak-global-exists;";
+  if (Options.InfLoopOnIndirectCall)
+    OS << "infloop-on-indirect-call;";
+  if (Options.BugOnlyIfOddNumberInsts)
+    OS << "bug-only-if-odd-number-insts;";
+  if (Options.BugOnlyIfInternalFunc)
+    OS << "bug-only-if-internal-func;";
+  if (Options.BugOnlyIfExternalFunc)
+    OS << "bug-only-if-external-func;";
+  if (Options.InsertUnparseableAsm)
+    OS << "insert-unparseable-asm;";
+  if (Options.MiscompileICmpSltToSle)
+    OS << "miscompile-icmp-slt-to-sle;";
+  if (Options.CrashOnBuggyAttr)
+    OS << "crash-on-buggy-attr;";
+  OS << '>';
+}
 
 PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
   bool Changed = false;
