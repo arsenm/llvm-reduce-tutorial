@@ -34,11 +34,18 @@ struct BuggyOptions {
   bool InsertUnparseableAsm = false;
   bool MiscompileICmpSltToSle = false;
   bool CrashOnBuggyAttr = false;
+  bool CrashOnBuggyGlobalState = false;
+
+  bool needBuggyAttrPass() const {
+    return CrashOnBuggyAttr || CrashOnBuggyGlobalState;
+  }
 };
 
 static volatile int side_effect;
 static StringLiteral Name = "buggy";
 static StringLiteral PassName = "buggy";
+
+static bool BuggyGlobalFlag = false;
 
 class BuggyPass : public PassInfoMixin<BuggyPass> {
   const BuggyOptions Options;
@@ -102,6 +109,8 @@ void BuggyPass::printPipeline(
     OS << "miscompile-icmp-slt-to-sle;";
   if (Options.CrashOnBuggyAttr)
     OS << "crash-on-buggy-attr;";
+  if (Options.CrashOnBuggyGlobalState)
+    OS << "crash-on-buggy-global-state;";
   OS << '>';
 }
 
@@ -115,6 +124,9 @@ PreservedAnalyses BuggyPass::run(Function &F, FunctionAnalysisManager &AM) {
 
   if (Options.CrashOnBuggyAttr && F.hasFnAttribute("buggy-attr"))
     report_fatal_error("buggy-attr is broken");
+
+  if (Options.CrashOnBuggyGlobalState && BuggyGlobalFlag)
+    report_fatal_error("pass depends on modified global state");
 
   size_t InstCount = 0;
   if (Options.BugOnlyIfOddNumberInsts) {
@@ -265,6 +277,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
       Result.MiscompileICmpSltToSle = Enable;
     else if (ParamName == "crash-on-buggy-attr")
       Result.CrashOnBuggyAttr = Enable;
+    else if (ParamName == "crash-on-buggy-global-state")
+      Result.CrashOnBuggyGlobalState = Enable;
     else {
       return make_error<StringError>(
           formatv("invalid buggy pass parameter '{0}'", Params).str(),
@@ -276,6 +290,8 @@ static Expected<BuggyOptions> parseBuggyOptions(StringRef Params) {
 }
 
 PreservedAnalyses BuggyAttrPass::run(Module &M, ModuleAnalysisManager &AM) {
+  BuggyGlobalFlag = true;
+
   for (Function &F : M) {
     if (!F.isDeclaration())
       F.addFnAttr("buggy-attr");
@@ -326,10 +342,8 @@ static llvm::PassPluginLibraryInfo getBuggyPluginInfo() {
                       sys::Process::GetEnv("BUGGY_PLUGIN_OPTS")) {
                 Expected<BuggyOptions> Options =
                     parseBuggyOptions(*PassPipelineOpts);
-                if (Options) {
-                  if (Options->CrashOnBuggyAttr)
-                    PM.addPass(BuggyAttrPass());
-                }
+                if (Options && Options->needBuggyAttrPass())
+                  PM.addPass(BuggyAttrPass());
               }
             });
             PB.registerPipelineParsingCallback(
