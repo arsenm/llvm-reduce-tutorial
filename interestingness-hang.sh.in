@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+
+! @TIMEOUT_CMD@ 10 $<TARGET_FILE:opt> -disable-output --load-pass-plugin=$<TARGET_FILE:buggy_plugin> -passes='buggy<infloop-on-indirect-call>' $@ 2> /dev/null

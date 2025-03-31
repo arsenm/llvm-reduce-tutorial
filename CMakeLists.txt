@@ -50,3 +50,19 @@ else()
        INPUT ${CMAKE_CURRENT_BINARY_DIR}/build_temporaries/reduce-pipeline-example.sh.tmp
        FILE_PERMISSIONS ${script_permissions})
 endif()
+
+find_program(TIMEOUT_CMD timeout)
+
+
+if(NOT REDUCE_PIPELINE)
+  message(WARNING "Did not find timeout, skipping hang example interestingness script")
+else()
+  message(STATUS "Found timeout: ${TIMEOUT_CMD}")
+
+  configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/interestingness-hang.sh.in
+    ${CMAKE_CURRENT_BINARY_DIR}/build_temporaries/interestingness-hang.sh.tmp @ONLY)
+  file(GENERATE OUTPUT interestingness-hang.sh
+       INPUT ${CMAKE_CURRENT_BINARY_DIR}/build_temporaries/interestingness-hang.sh.tmp
+       FILE_PERMISSIONS ${script_permissions})
+endif()
