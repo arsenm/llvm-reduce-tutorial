@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+$<TARGET_FILE:opt> -disable-output --load-pass-plugin=$<TARGET_FILE:buggy_plugin> -passes='instsimplify,simplifycfg,buggy<crash-on-i1-select;crash-on-repeated-phi-predecessor;bug-only-if-internal-func>' $@ 2>&1 | grep -q "i1 typed select is broken"
+

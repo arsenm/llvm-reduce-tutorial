@@ -35,6 +35,19 @@ if(Clang_FOUND)
        FILE_PERMISSIONS ${script_permissions})
 endif()
 
+
+file(GENERATE OUTPUT interestingness-multi-crash.sh
+     INPUT interestingness-multi-crash.sh.in
+     FILE_PERMISSIONS ${script_permissions})
+
+file(GENERATE OUTPUT interestingness-multi-crash-filtered-error-msg.sh
+     INPUT interestingness-multi-crash-filtered-error-msg.sh.in
+     FILE_PERMISSIONS ${script_permissions})
+
+file(GENERATE OUTPUT interestingness-multi-crash-filtered-error-msg-filecheck.sh
+     INPUT interestingness-multi-crash-filtered-error-msg-filecheck.sh.in
+     FILE_PERMISSIONS ${script_permissions})
+
 find_program(REDUCE_PIPELINE reduce_pipeline.py PATHS "${LLVM_PROJECT_SRC}/llvm/utils")
 find_program(TIME_CMD time)
 
