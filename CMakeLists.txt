@@ -86,3 +86,17 @@ else()
        INPUT ${CMAKE_CURRENT_BINARY_DIR}/build_temporaries/interestingness-hang.sh.tmp
        FILE_PERMISSIONS ${script_permissions})
 endif()
+
+
+if(Clang_FOUND)
+  set(MISCOMPILE_AND_RUN_TEST_INPUT ${CMAKE_CURRENT_SOURCE_DIR}/opt-bisect-miscompile-example/test.c)
+
+  configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/opt-bisect-miscompile-example/miscompile_and_run.sh.in
+    ${CMAKE_CURRENT_BINARY_DIR}/build_temporaries/opt-bisect-miscompile-example/miscompile_and_run.sh.in.tmp @ONLY)
+
+  file(GENERATE
+    OUTPUT opt-bisect-miscompile-example/miscompile_and_run.sh
+    INPUT ${CMAKE_CURRENT_BINARY_DIR}/build_temporaries/opt-bisect-miscompile-example/miscompile_and_run.sh.in.tmp
+    FILE_PERMISSIONS ${script_permissions})
+endif()

@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Usage: miscompile_and_run.sh -mllvm -opt-bisect-limit=N
+# Depending on value will echo 0 or 1
+
+set -x
+
+BUGGY_PLUGIN_OPTS="miscompile-icmp-slt-to-sle" $<TARGET_FILE:clang> -O3 -fpass-plugin=$<TARGET_FILE:buggy_plugin> -o test @MISCOMPILE_AND_RUN_TEST_INPUT@ $@
+./test one-argument
+echo $?
