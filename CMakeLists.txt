@@ -35,6 +35,13 @@ if(Clang_FOUND)
        FILE_PERMISSIONS ${script_permissions})
 endif()
 
+file(GENERATE OUTPUT interestingness.sh
+     INPUT interestingness.sh.in
+     FILE_PERMISSIONS ${script_permissions})
+
+file(GENERATE OUTPUT interestingness-cleanup-passes.sh
+     INPUT interestingness-cleanup-passes.sh.in
+     FILE_PERMISSIONS ${script_permissions})
 
 file(GENERATE OUTPUT interestingness-multi-crash.sh
      INPUT interestingness-multi-crash.sh.in
