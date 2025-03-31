@@ -1,0 +1,13 @@
+$ mkdir build; cd build
+$ cmake .. -G Ninja -DCMAKE_PREFIX_PATH=/path/to/llvm-project/build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLLVM_PROJECT_SRC=/path/to/llvm-project
+
+
+When using opt -passes, pass parameter syntax is accepted:
+
+opt --load-pass-plugin=/path/to/plugin -passes='buggy<crash-on-vector>' input.bc
+
+As a clang pass plugin, set BUGGY_PLUGIN_OPTS to the list of pass
+parameters. The pass runs as part of the vectorizer pipeline
+
+
+Some example scripts will be emitted to the build directory
