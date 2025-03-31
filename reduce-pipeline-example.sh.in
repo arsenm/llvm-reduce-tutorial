@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# Usage: reduce-pipeline-example.sh <input ll file> <output ll file>
+
+INPUT_BITCODE_FILE=$1
+OUTPUT_BITCODE_FILE=$2
+
+if [ -z $INPUT_BITCODE_FILE ]; then
+    echo "must provide input file as first argument"
+    exit 1
+fi
+
+if [ -z $OUTPUT_BITCODE_FILE ]; then
+   OUTPUT_BITCODE_FILE=reduced-pipeline-output.ll
+fi
+
+export BUGGY_PLUGIN_OPTS=crash-on-buggy-global-state
+
+@TIME_CMD@ @REDUCE_PIPELINE@ --opt-binary $<TARGET_FILE:opt> \
+    --passes='default<O2>' \
+    --input ${INPUT_BITCODE_FILE} \
+    --output ${OUTPUT_BITCODE_FILE} \
+    --load-pass-plugin=$<TARGET_FILE:buggy_plugin>
+

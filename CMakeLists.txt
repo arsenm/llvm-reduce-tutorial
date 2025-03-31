@@ -1,5 +1,5 @@
 # mkdir build; cd build_
-# cmake .. -G Ninja -DCMAKE_PREFIX_PATH=$HOME/src/llvm-project/build_rel_with_debinfo -DCMAKE_BUILD_TYPE=RelWithDebInfo
+# cmake .. -G Ninja -DCMAKE_PREFIX_PATH=$HOME/src/llvm-project/build_rel_with_debinfo -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLLVM_PROJECT_SRC=$HOME/src/llvm-project
 
 cmake_minimum_required(VERSION 3.20.0)
 set(CMAKE_CXX_STANDARD 17)
@@ -10,6 +10,10 @@ find_package(Clang CONFIG)
 
 include(AddLLVM)
 
+option(LLVM_PROJECT_SRC
+       "Source directory for llvm-project"
+       $ENV{LLVM_PROJECT_SRC})
+
 add_llvm_pass_plugin(buggy_plugin buggy_plugin.cpp LINK_COMPONENTS Core)
 
 target_include_directories(buggy_plugin PRIVATE ${LLVM_INCLUDE_DIRS})
@@ -17,16 +21,32 @@ target_compile_definitions(buggy_plugin PRIVATE ${LLVM_DEFINITIONS})
 
 process_llvm_pass_plugins(buggy_plugin)
 
+set(script_permissions OWNER_READ OWNER_WRITE OWNER_EXECUTE
+                       GROUP_READ GROUP_EXECUTE
+                        WORLD_READ WORLD_EXECUTE)
+
 file(GENERATE OUTPUT buggy_opt
      INPUT ${CMAKE_CURRENT_SOURCE_DIR}/buggy_opt.in
-     FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
-                      GROUP_READ GROUP_EXECUTE
-                      WORLD_READ WORLD_EXECUTE)
+     FILE_PERMISSIONS ${script_permissions})
 
 if(Clang_FOUND)
   file(GENERATE OUTPUT buggy_clang
        INPUT ${CMAKE_CURRENT_SOURCE_DIR}/buggy_clang.in
-       FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
-                        GROUP_READ GROUP_EXECUTE
-                        WORLD_READ WORLD_EXECUTE)
+       FILE_PERMISSIONS ${script_permissions})
+endif()
+
+find_program(REDUCE_PIPELINE reduce_pipeline.py PATHS "${LLVM_PROJECT_SRC}/llvm/utils")
+find_program(TIME_CMD time)
+
+if(NOT REDUCE_PIPELINE)
+  message(WARNING "Did not find reduce_pipeline.py, skipping reduce pipeline example script")
+else()
+  message(STATUS "Found reduce_pipeline.py: ${REDUCE_PIPELINE}")
+
+  configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/reduce-pipeline-example.sh.in
+    ${CMAKE_CURRENT_BINARY_DIR}/build_temporaries/reduce-pipeline-example.sh.tmp @ONLY)
+  file(GENERATE OUTPUT reduce-pipeline-example.sh
+       INPUT ${CMAKE_CURRENT_BINARY_DIR}/build_temporaries/reduce-pipeline-example.sh.tmp
+       FILE_PERMISSIONS ${script_permissions})
 endif()
