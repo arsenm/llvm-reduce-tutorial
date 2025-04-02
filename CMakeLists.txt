@@ -100,3 +100,5 @@ if(Clang_FOUND)
     INPUT ${CMAKE_CURRENT_BINARY_DIR}/build_temporaries/opt-bisect-miscompile-example/miscompile_and_run.sh.in.tmp
     FILE_PERMISSIONS ${script_permissions})
 endif()
+
+add_subdirectory(reduce-llvm-reduce-introducing-unreachable-blocks)

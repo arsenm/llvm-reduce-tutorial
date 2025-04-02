@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+INPUT=$1
+
+if [ -z $INPUT ]; then
+    echo "Usage: $0 <input-file>"
+    exit 1
+fi
+
+$<TARGET_FILE:llvm-reduce> -o meta-reduced.ll -v -abort-on-invalid-reduction --test="@YO_DAWG@" $@

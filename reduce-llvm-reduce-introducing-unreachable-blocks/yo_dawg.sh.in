@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+
+INPUT=$1
+
+# Must have at least one function in the module.
+if ! grep -q "^define" $INPUT; then
+    #echo "Input has no functions"
+    exit 1
+fi
+
+# Ignore cases that have dead code in the input
+if grep -q "No predecessors" $INPUT; then
+   #echo "Input had unreachable code to start"
+   exit 1
+fi
+
+TMPFILE=`mktemp` || exit 1
+
+$<TARGET_FILE:llvm-reduce> -v \
+   --abort-on-invalid-reduction \
+   --skip-delta-passes=unreachable-basic-blocks -o $TMPFILE \
+   --test="@YO_DAWG_INTERESTINGNESS@" $@
+
+reduce_status=$?
+if [ $reduce_status -eq 2 ]; then
+    # Exit code 2 indicates the input was not interesting.
+    exit 1
+fi
+
+# Looking for case that introduced unreachable code.
+grep -q "No predecessors" $TMPFILE
