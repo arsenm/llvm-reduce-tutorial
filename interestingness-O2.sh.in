@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+
+! BUGGY_PLUGIN_OPTS="crash-load-of-inttoptr" $<TARGET_FILE:opt> -disable-output -O2 --load-pass-plugin=$<TARGET_FILE:buggy_plugin> $@ 2> /dev/null

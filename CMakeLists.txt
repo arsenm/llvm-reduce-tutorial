@@ -39,6 +39,10 @@ file(GENERATE OUTPUT interestingness.sh
      INPUT interestingness.sh.in
      FILE_PERMISSIONS ${script_permissions})
 
+file(GENERATE OUTPUT interestingness-O2.sh
+     INPUT interestingness-O2.sh.in
+     FILE_PERMISSIONS ${script_permissions})
+
 file(GENERATE OUTPUT interestingness-cleanup-passes.sh
      INPUT interestingness-cleanup-passes.sh.in
      FILE_PERMISSIONS ${script_permissions})
